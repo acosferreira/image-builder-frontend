@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 
 import AsyncComponent from '@redhat-cloud-services/frontend-components/AsyncComponent';
-
+import { addNotification } from '@redhat-cloud-services/frontend-components-notifications/redux';
 import { Tabs, Tab, TabTitleText }from '@patternfly/react-core';
 import {
   EmptyState,
@@ -161,6 +161,37 @@ const ImagesTable = () => {
   const itemsStartInclusive = (page - 1) * perPage;
   const itemsEndExclusive = itemsStartInclusive + perPage;
 
+  const notificationProp = {
+    hasInfo: (hasInfoMessage) => {
+      dispatch({
+        ...addNotification({
+          variant: 'info',
+          ...hasInfoMessage,
+        }),
+      });
+    },
+    hasSuccess: (hasSuccessMessage) => {
+      dispatch({
+        ...addNotification({
+          variant: 'success',
+          ...hasSuccessMessage,
+        }),
+      });
+    },
+    err: (errMessage, err) => {
+      dispatch({
+        ...addNotification({
+          variant: 'danger',
+          ...errMessage,
+          // Add error message from API, if present
+          description: err?.Title
+            ? `${errMessage.description}: ${err.Title}`
+            : errMessage.description,
+        }),
+      });
+    },
+  };
+
   return (
     <React.Fragment>
       {(composes.allIds.length === 0 && (
@@ -216,109 +247,109 @@ const ImagesTable = () => {
             </ToolbarContent>
           </Toolbar>
           <Tabs
-                className="pf-u-ml-md"
-                activeKey={activeTabKey}
-                onSelect={handleTabClick}
+            className="pf-u-ml-md"
+            activeKey={activeTabKey}
+            onSelect={handleTabClick}
+          >
+            <Tab eventKey={0} title={<TabTitleText>EDGE</TabTitleText>}>
+              <AsyncComponent
+                appName="edge"
+                module="./Images"
+                // historyProp={useHistory}
+                navigateProp={useNavigate}
+                locationProp={useLocation}
+                notificationProp={notificationProp}
+              />
+            </Tab>
+            <Tab
+              eventKey={1}
+              title={<TabTitleText>Image Builder</TabTitleText>}
             >
-               
-          <Tab eventKey={0} title={<TabTitleText>EDGE</TabTitleText>}>
-            <AsyncComponent
-              appName="edge"
-              module="./Images"
-              // historyProp={useHistory}
-              navigateProp={useNavigate}
-              locationProp={useLocation}
-            /> 
-          </Tab>
-
-          <Tab eventKey={1} title={<TabTitleText>Image Builder</TabTitleText>}>
-            <TableComposable variant="compact" data-testid="images-table">
-              <Thead>
-                <Tr>
-                  <Th />
-                  <Th>Image name</Th>
-                  <Th>Created/Updated</Th>
-                  <Th>Release</Th>
-                  <Th>Target</Th>
-                  <Th>Status</Th>
-                  <Th>Instance</Th>
-                  <Th />
-                </Tr>
-              </Thead>
-              {composes.allIds
-                .slice(itemsStartInclusive, itemsEndExclusive)
-                .map((id, rowIndex) => {
-                  const compose = composes.byId[id];
-                  return (
-                    <Tbody key={id} isExpanded={isExpanded(compose)}>
-                      <Tr className="no-bottom-border">
-                        <Td
-                          expand={{
-                            rowIndex,
-                            isExpanded: isExpanded(compose),
-                            onToggle: () =>
-                              handleToggle(compose, !isExpanded(compose)),
-                          }}
-                        />
-                        <Td dataLabel="Image name">
-                          {compose.request.image_name || id}
-                        </Td>
-                        <Td dataLabel="Created">
-                          {timestampToDisplayString(compose.created_at)}
-                        </Td>
-                        <Td dataLabel="Release">
-                          <Release release={compose.request.distribution} />
-                        </Td>
-                        <Td dataLabel="Target">
-                          <Target composeId={id} />
-                        </Td>
-                        <Td dataLabel="Status">
-                          <ImageBuildStatus
-                            imageId={id}
-                            isImagesTableRow={true}
-                            imageStatus={compose.image_status}
+              <TableComposable variant="compact" data-testid="images-table">
+                <Thead>
+                  <Tr>
+                    <Th />
+                    <Th>Image name</Th>
+                    <Th>Created/Updated</Th>
+                    <Th>Release</Th>
+                    <Th>Target</Th>
+                    <Th>Status</Th>
+                    <Th>Instance</Th>
+                    <Th />
+                  </Tr>
+                </Thead>
+                {composes.allIds
+                  .slice(itemsStartInclusive, itemsEndExclusive)
+                  .map((id, rowIndex) => {
+                    const compose = composes.byId[id];
+                    return (
+                      <Tbody key={id} isExpanded={isExpanded(compose)}>
+                        <Tr className="no-bottom-border">
+                          <Td
+                            expand={{
+                              rowIndex,
+                              isExpanded: isExpanded(compose),
+                              onToggle: () =>
+                                handleToggle(compose, !isExpanded(compose)),
+                            }}
                           />
-                        </Td>
-                        <Td dataLabel="Instance">
-                          <ImageLink
-                            imageId={id}
-                            isExpired={
-                              hoursToExpiration(compose.created_at) >=
-                              AWS_S3_EXPIRATION_TIME_IN_HOURS
-                                ? true
-                                : false
-                            }
-                          />
-                        </Td>
-                        <Td>
-                          {compose.request.image_requests[0].upload_request
-                            .type === 'aws' ? (
-                            <ActionsColumn items={awsActions(compose)} />
-                          ) : (
-                            <ActionsColumn items={actions(compose)} />
-                          )}
-                        </Td>
-                      </Tr>
-                      <Tr isExpanded={isExpanded(compose)}>
-                        <Td colSpan={8}>
-                          {compose.request.image_requests[0].upload_request
-                            .type === 'aws' ? (
-                            <ClonesTable composeId={compose.id} />
-                          ) : (
-                            <ExpandableRowContent>
-                              <strong>UUID</strong>
-                              <div>{id}</div>
-                            </ExpandableRowContent>
-                          )}
-                        </Td>
-                      </Tr>
-                    </Tbody>
-                  );
-                })}
-            </TableComposable>
-          </Tab> 
-                
-                           
+                          <Td dataLabel="Image name">
+                            {compose.request.image_name || id}
+                          </Td>
+                          <Td dataLabel="Created">
+                            {timestampToDisplayString(compose.created_at)}
+                          </Td>
+                          <Td dataLabel="Release">
+                            <Release release={compose.request.distribution} />
+                          </Td>
+                          <Td dataLabel="Target">
+                            <Target composeId={id} />
+                          </Td>
+                          <Td dataLabel="Status">
+                            <ImageBuildStatus
+                              imageId={id}
+                              isImagesTableRow={true}
+                              imageStatus={compose.image_status}
+                            />
+                          </Td>
+                          <Td dataLabel="Instance">
+                            <ImageLink
+                              imageId={id}
+                              isExpired={
+                                hoursToExpiration(compose.created_at) >=
+                                AWS_S3_EXPIRATION_TIME_IN_HOURS
+                                  ? true
+                                  : false
+                              }
+                            />
+                          </Td>
+                          <Td>
+                            {compose.request.image_requests[0].upload_request
+                              .type === 'aws' ? (
+                              <ActionsColumn items={awsActions(compose)} />
+                            ) : (
+                              <ActionsColumn items={actions(compose)} />
+                            )}
+                          </Td>
+                        </Tr>
+                        <Tr isExpanded={isExpanded(compose)}>
+                          <Td colSpan={8}>
+                            {compose.request.image_requests[0].upload_request
+                              .type === 'aws' ? (
+                              <ClonesTable composeId={compose.id} />
+                            ) : (
+                              <ExpandableRowContent>
+                                <strong>UUID</strong>
+                                <div>{id}</div>
+                              </ExpandableRowContent>
+                            )}
+                          </Td>
+                        </Tr>
+                      </Tbody>
+                    );
+                  })}
+              </TableComposable>
+            </Tab>
           </Tabs>
           <Toolbar className="pf-u-mb-xl">
             <ToolbarContent>
